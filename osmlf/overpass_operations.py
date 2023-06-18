@@ -4,6 +4,42 @@ from overpass_calculations import calculations
 
 class operations:
 
+    def filter_members(relations: list, role: str) -> list:
+        """
+        This function filters members of given relations based on the specified role.
+        
+        Args:
+            relations (list): A list of OSM relation objects.
+            role (str): The role to filter members by.
+
+        Returns:
+            list: A list of reference IDs for members with the specified role.
+        """
+
+        # Using list comprehension to find members with the specified role in all relations and return it
+        return [member for relation in relations for member in relation.members if member.role == role]
+
+    def filter_ways(ways: list, key: str, value: str) -> list:
+        """
+        Filter the list of OSM way objects based on a specific tag's key and value.
+        
+        Args:
+            ways (list): A list of OSM way objects to filter.
+            key (str): The key of the tag to check in each way.
+            value (str): The value of the tag to match in each way.
+
+        Returns:
+            list: A new list of OSM way objects that have the specified tag key and value.
+
+        Notes:
+            Only way objects that contain the specified key in their tags and where the corresponding 
+            value matches the specified value are included in the returned list. Way objects without 
+            the specified key or with a different value for this key are excluded.
+        """
+
+        # Using list comprehension to find ways with the specified key and value in all ways and return it
+        return [way for way in ways if key in way.tags and way.tags[key] == value]
+
     def select_utm_zone(lat: float, lon: float) -> str:
         """Select a UTM zone based on a location.
 
@@ -38,7 +74,7 @@ class operations:
         """
 
         # Get all subareas from given relations list
-        subareas = calculations.filter_members(relations=relations, role='subarea')
+        subareas = operations.filter_members(relations=relations, role='subarea')
 
         # Return a dictionary with the total number of subareas and a sorted list of the reference IDs of the subareas
         return {
@@ -64,7 +100,7 @@ class operations:
         """
 
         # Get all outers from given relation list
-        outers = calculations.filter_members(relations=relations, role='outer')
+        outers = operations.filter_members(relations=relations, role='outer')
 
         # # Get all areas from outers
         return calculations.area_of_members(members=outers, utm_zone=utm_zone)

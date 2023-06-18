@@ -8,21 +8,6 @@ from shapely.geometry import Polygon
 from geopy.distance import geodesic
 
 class calculations:
-    
-    def filter_members(relations: list, role: str) -> list:
-        """
-        This function filters members of given relations based on the specified role.
-        
-        Args:
-            relations (list): A list of OSM relation objects.
-            role (str): The role to filter members by.
-
-        Returns:
-            list: A list of reference IDs for members with the specified role.
-        """
-
-        #  Using list comprehension to find members with the specified role in all relations and return it
-        return [member for relation in relations for member in relation.members if member.role == role]
 
     def area_of_ways(ways: list, utm_zone: str) -> dict:
         """
@@ -78,7 +63,6 @@ class calculations:
         way_features['total_area'] = total_area
 
         return way_features
-
     
     def area_of_members(members: list, utm_zone: str) -> dict:
         """
