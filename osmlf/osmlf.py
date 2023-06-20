@@ -17,6 +17,7 @@ from geopy.geocoders import Nominatim
 # OMSLF Modules
 from overpass_queries import queries
 from overpass_operations import operations
+from overpass_calculations import calculations
 
 class osmlf:
 
@@ -75,4 +76,48 @@ class osmlf:
             'core'      : (float(self.location.raw['lat']), float(self.location.raw['lon'])), 
             'subareas'  : operations.subareas(relations=admin.relations),
             'total_area': operations.total_area(relations=admin.relations, utm_zone=self.utm_zone)
+        }
+
+    def landuse(self) -> dict:
+        """
+        Retrieves and returns landuse information about the location from the Overpass API.
+
+        The method:
+            - Initializes an Overpass query for landuse information.
+            - Executes the Overpass query and saves the response.
+            - Calculates the area for each landuse type.
+            - Returns a dictionary with the landuse response and the areas of each landuse type.
+
+        Returns:
+            dict: A dictionary containing:
+                - 'response': the raw response from the Overpass API.
+                - 'forest', 'residential', 'commercial', 'industrial', 'farming': 
+                dictionaries for each landuse type containing way features, count of ways, and total area.
+        """
+
+        # Initialize the Overpass query for landuse information, specifically targeting areas of 'forest', 'residential', 
+        # 'commercial', 'industrial', and 'farming' land use types
+        query = queries.generate_osm_query(
+            osm_id=self.osm_id,
+            key='landuse', 
+            values=['forest', 'residential', 'commercial', 'industrial', 'farming']
+        )
+
+        # Execute the Overpass query and save the response
+        landuse = self.api.query(query)
+
+        # Helper lambda functions for readability: 
+        # 'landuse_key' filters ways by a specific land use key
+        # 'area' calculates the area of ways corresponding to a specific land use key
+        landuse_key = lambda key: operations.filter_ways(landuse.ways, 'landuse', key)
+        area        = lambda key: calculations.area_of_ways(landuse_key(key), self.utm_zone)
+
+        # Return a dictionary with the landuse response and the areas of each landuse type
+        return {
+            'response'   : landuse,
+            'forest'     : area('forest'),
+            'residential': area('residential'),
+            'commercial' : area('commercial'),
+            'industrial' : area('industrial'),
+            'farming'    : area('farming')
         }
