@@ -39,10 +39,13 @@ class calculations:
         for way in ways:
 
             # Extract the coordinates of the way's nodes
-            coordinates = [(float(node.lon), float(node.lat)) for node in way.nodes]
+            coordinates = [(float(node.lat), float(node.lon)) for node in way.nodes]
+
+            # Extract the coordinates as pyproj wants
+            coordinates_pyroj = [(float(node.lon), float(node.lat)) for node in way.nodes]
 
             # Project the coordinates to the specified UTM zone
-            coordinates_projected = [transformer.transform(*coord) for coord in coordinates]
+            coordinates_projected = [transformer.transform(*coord) for coord in coordinates_pyroj]
 
             # Accumulate the projected coordinates
             all_coordinates_projected.extend(coordinates_projected)
