@@ -1,3 +1,4 @@
 .env
 test
 examples
+*__pycache__
