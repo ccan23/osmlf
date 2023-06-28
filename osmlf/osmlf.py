@@ -121,3 +121,46 @@ class osmlf:
             'industrial' : area('industrial'),
             'farming'    : area('farming')
         }
+
+    def leisure(self) -> dict:
+        """
+        Retrieves and returns leisure information about the location from the Overpass API.
+
+        The method:
+            - Initializes an Overpass query for leisure information.
+            - Executes the Overpass query and saves the response.
+            - Calculates the area for each leisure type.
+            - Returns a dictionary with the leisure response and the areas of each leisure type.
+
+        Returns:
+            dict: A dictionary containing:
+                - 'response': the raw response from the Overpass API.
+                - 'marina', 'garden', 'park', 'playground', 'stadium': 
+                dictionaries for each leisure type containing way features, count of ways, and total area.
+        """
+        
+        # Initialize the overpass query for leisure information
+        query = queries.generate_osm_query(
+            osm_id=self.osm_id,
+            key='leisure',
+            values=['marina', 'garden', 'park', 'playground', 'stadium']
+        )
+
+        # Execute the Overpass query and save the response
+        leisure = self.api.query(query)
+
+        # Helper lambda functions for readability:
+        # 'leisure_key' filters ways by a specific leisure key
+        # 'area' calculates the area of ways corresponding to a specific leisure key
+        leisure_key = lambda key: operations.filter_ways(leisure.ways, 'leisure', key)
+        area        = lambda key: calculations.area_of_ways(leisure_key(key), self.utm_zone)
+
+        # Return a dictionary with the leisure response and the areas and distances of each leisure type
+        return {
+            'response'      : leisure,
+            'marina'        : area('marina'),
+            'garden'        : area('garden'),
+            'park'          : area('park'),
+            'playground'    : area('playground'),
+            'stadium'       : area('stadium')
+        }
