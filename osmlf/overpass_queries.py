@@ -16,7 +16,7 @@ class queries:
     def generate_osm_query(osm_id: int, key: str, values: list) -> str:
         """
         Given an OpenStreetMap ID, a key, and a list of values, generate an Overpass QL query that retrieves 
-        related way and relation objects from the OpenStreetMap database for any of the given values.
+        related node, way and relation objects from the OpenStreetMap database for any of the given values.
         
         Args:
             osm_id (int): The OpenStreetMap ID to base the query on.
@@ -27,7 +27,7 @@ class queries:
             str: A string that represents an Overpass QL query.
         """
         # Create the string representing the list of possible key-value matches
-        value_string = ''.join([f'way(area.a)["{key}"="{value}"];relation(area.a)["{key}"="{value}"];' for value in values])
+        value_string = ''.join([f'node(area.a)["{key}"="{value}"];way(area.a)["{key}"="{value}"];relation(area.a)["{key}"="{value}"];' for value in values])
         
         # Insert the value string into the Overpass QL query
         return f"""
