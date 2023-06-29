@@ -4,6 +4,22 @@ from overpass_calculations import calculations
 
 class operations:
 
+    def filter_nodes(nodes: list, key: str, value: str) -> list:
+        """
+        Filters a list of OSM nodes based on a specified key-value pair.
+
+        Args:
+            nodes (list): A list of OSM node objects.
+            key (str): The key to filter on.
+            value (str): The value to match for the specified key.
+
+        Returns:
+            list: A filtered list of OSM nodes that match the specified key-value pair.
+        """
+
+        # Using list comprehension to find nodes with the specified key and value in all ways and return it
+        return [node for node in nodes if key in node.tags and node.tags[key] == value]
+
     def filter_members(relations: list, role: str) -> list:
         """
         This function filters members of given relations based on the specified role.
