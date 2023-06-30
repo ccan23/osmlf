@@ -23,21 +23,21 @@ class calculations:
         # Create a list of dictionaries with specific information extracted from each node object
         return [{'id': node.id, 'tags': node.tags, 'coordinate': (float(node.lat), float(node.lon))} for node in nodes]
 
-    def area_of_ways(ways: list, utm_zone: str) -> dict:
+    def ways(ways: list, utm_zone: str) -> dict:
         """
-        This function computes the area of a list of OSM ways in a specified UTM zone.
-        
+        Processes a list of OpenStreetMap (OSM) ways and extracts relevant features, including their area.
+
         Args:
             ways (list): A list of OSM way objects.
             utm_zone (str): The UTM zone for which to compute the area.
 
         Returns:
-            dict: A dictionary that contains way features, count of ways, and total area.
+            dict: A dictionary containing features of each way, total way count, and the total area.
 
         Note: 
-            The area is calculated by first projecting all the way's coordinates from the WGS84 
-            coordinate system to the specified UTM zone, constructing a polygon 
-            from these projected coordinates, and then computing its area. The area is in square kilometers.
+            The function calculates the area of each way by projecting its coordinates from the WGS84 
+            coordinate system to the specified UTM zone. It then extracts the ID, name, original coordinates, 
+            and computed area for each way. The area is provided in square kilometers.
         """
 
         # Initialize a Transformer object for converting the coordinates from WGS84 to the specified UTM zone
