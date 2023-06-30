@@ -9,6 +9,20 @@ from geopy.distance import geodesic
 
 class calculations:
 
+    def nodes(nodes: list) -> dict:
+        """
+        Retrieves specific information from a list of OSM nodes and returns a list of dictionaries with the desired data.
+
+        Args:
+            nodes (list): A list of OSM node objects.
+
+        Returns:
+            list: A list of dictionaries containing the desired information for each node.
+        """
+
+        # Create a list of dictionaries with specific information extracted from each node object
+        return [{'id': node.id, 'tags': node.tags, 'coordinate': (float(node.lat), float(node.lon))} for node in nodes]
+
     def area_of_ways(ways: list, utm_zone: str) -> dict:
         """
         This function computes the area of a list of OSM ways in a specified UTM zone.
@@ -29,9 +43,6 @@ class calculations:
         # Initialize a Transformer object for converting the coordinates from WGS84 to the specified UTM zone
         transformer = Transformer.from_crs('EPSG:4326', utm_zone, always_xy=True)
 
-        # Initialize an empty list to accumulate all projected coordinates
-        all_coordinates_projected = []
-
         # Initialize an empty dictionary to store the features of each way
         way_features = {'ways': list()}
 
@@ -47,23 +58,21 @@ class calculations:
             # Project the coordinates to the specified UTM zone
             coordinates_projected = [transformer.transform(*coord) for coord in coordinates_pyroj]
 
-            # Accumulate the projected coordinates
-            all_coordinates_projected.extend(coordinates_projected)
+            # Construct a polygon from all the projected coordinates and compute its area in square kilometers
+            polygon_projected = Polygon(coordinates_projected)
+            area = polygon_projected.area / 10**6
 
             # Store the way's ID, name, original coordinates
             way_features['ways'].append({
                 'way_id'     : way.id,
                 'name'       : way.tags.get('name', 'unknown'),
                 'coordinates': coordinates,
+                'area'       : area
             })
-
-        # Construct a polygon from all the projected coordinates and compute its area in square kilometers
-        polygon_projected = Polygon(all_coordinates_projected)
-        total_area = polygon_projected.area / 10**6
 
         # Add the total count of processed ways and the total area of all ways to the result
         way_features['way_count'] = len(way_features['ways'])
-        way_features['total_area'] = total_area
+        way_features['total_area'] = sum([way['area'] for way in way_features['ways']])
 
         return way_features
     
