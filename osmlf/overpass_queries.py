@@ -21,14 +21,19 @@ class queries:
         Args:
             osm_id (int): The OpenStreetMap ID to base the query on.
             key (str): The key to use in the Overpass QL query.
-            values (list): The values to match with the key in the Overpass QL query.
+            values (list): The values to match with the key in the Overpass QL query (Optional).
 
         Returns:
             str: A string that represents an Overpass QL query.
         """
+
         # Create the string representing the list of possible key-value matches
-        value_string = ''.join([f'node(area.a)["{key}"="{value}"];way(area.a)["{key}"="{value}"];relation(area.a)["{key}"="{value}"];' for value in values])
-        
+        if values:
+            value_string = ''.join([f'node(area.a)["{key}"="{value}"];way(area.a)["{key}"="{value}"];relation(area.a)["{key}"="{value}"];' for value in values])
+            
+        else:
+            value_string = f'node(area.a)["{key}"];way(area.a)["{key}"];relation(area.a)["{key}"];'
+
         # Insert the value string into the Overpass QL query
         return f"""
         [out:json];
