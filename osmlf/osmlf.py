@@ -78,6 +78,57 @@ class osmlf:
             'total_area': operations.total_area(relations=admin.relations, utm_zone=self.utm_zone)
         }
 
+    def amenity(self) -> dict:
+        """
+        Retrieves amenity information for a specific OpenStreetMap ID.
+
+        Returns a dictionary containing nodes and ways grouped by amenity values.
+
+        Returns:
+            dict: A dictionary containing nodes and ways grouped by amenity values.
+                The structure of the dictionary is as follows:
+                {
+                    'nodes': {
+                        'amenity_1': [list of nodes with amenity_1],
+                        'amenity_2': [list of nodes with amenity_2],
+                        ...
+                    },
+                    'ways': {
+                        'amenity_1': [list of ways with amenity_1],
+                        'amenity_2': [list of ways with amenity_2],
+                        ...
+                    }
+                }
+        """
+
+        # List of amenity values to retrieve information for
+        values = [
+            'bar', 'cafe', 'fast_food', 'food_court', 'pub', 'restaurant',
+            'college', 'library', 'school', 'university', 'atm', 'bank',
+            'clinic', 'dentist', 'doctors', 'hospital', 'pharmacy', 'veterinary',
+            'cinema', 'conference_centre', 'theatre', 'courthouse', 'fire_station',
+            'police', 'post_office', 'townhall', 'marketplace', 'grave_yard'
+        ]
+
+        # Generate the Overpass query for amenity information
+        query = queries.generate_osm_query(
+            osm_id=self.osm_id,
+            key='amenity',
+            values=values
+        )
+
+        # Execute the Overpass query and save the response
+        amenity = self.api.query(query)
+
+        # Retrieve nodes for each amenity value and store them in a dictionary
+        nodes = {value: calculations.nodes(operations.filter_nodes(amenity.nodes, 'amenity', value)) for value in values}
+
+        # Retrieve ways for each amenity value and store them in a dictionary
+        ways = {value: calculations.ways(operations.filter_ways(amenity.ways, 'amenity', value), self.utm_zone) for value in values}
+
+        # Return the dictionary containing nodes and ways grouped by amenity values
+        return {'nodes': nodes, 'ways': ways}
+
     def landuse(self) -> dict:
         """
         Retrieves and returns landuse information about the location from the Overpass API.
@@ -110,7 +161,7 @@ class osmlf:
         # 'landuse_key' filters ways by a specific land use key
         # 'area' calculates the area of ways corresponding to a specific land use key
         landuse_key = lambda key: operations.filter_ways(landuse.ways, 'landuse', key)
-        area        = lambda key: calculations.area_of_ways(landuse_key(key), self.utm_zone)
+        area        = lambda key: calculations.ways(landuse_key(key), self.utm_zone)
 
         # Return a dictionary with the landuse response and the areas of each landuse type
         return {
@@ -153,7 +204,7 @@ class osmlf:
         # 'leisure_key' filters ways by a specific leisure key
         # 'area' calculates the area of ways corresponding to a specific leisure key
         leisure_key = lambda key: operations.filter_ways(leisure.ways, 'leisure', key)
-        area        = lambda key: calculations.area_of_ways(leisure_key(key), self.utm_zone)
+        area        = lambda key: calculations.ways(leisure_key(key), self.utm_zone)
 
         # Return a dictionary with the leisure response and the areas and distances of each leisure type
         return {
