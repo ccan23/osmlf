@@ -248,7 +248,7 @@ class osmlf:
             {
                 'tags': way.tags,
                 'coordinates': [(float(node.lat), float(node.lon)) for node in way.nodes],
-                'length': calculations.calculate_total_distance(
+                'length': calculations.total_distance(
                     [(float(node.lat), float(node.lon)) for node in way.nodes],
                     self.utm_zone
                 )

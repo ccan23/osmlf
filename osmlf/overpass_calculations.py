@@ -6,6 +6,7 @@ from shapely.geometry import Polygon
 
 # Distance
 from geopy.distance import geodesic
+from shapely.geometry import LineString, MultiLineString
 
 class calculations:
 
@@ -107,26 +108,35 @@ class calculations:
 
         # Compute the area of the created polygon and convert it to square kilometers (since the original area is in square meters)
         # Return the computed area
-        return polygon_projected.area / 10**6
+        return polygon_projected.area / 10**6 
 
-    def total_distances(coordinates: list) -> float:
-        """This function computes the total distance of a sequence of geographical coordinates.
-    
+    def total_distance(coordinates, utm_zone) -> float:
+        """
+        Calculates the total geodesic distance between a series of coordinates.
+
+        This method calculates the total distance by iterating over a list of coordinates and summing the geodesic distance
+        between consecutive points. The coordinates are assumed to be in WGS84 (latitude, longitude) format.
+
         Args:
-            coordinates (list): A list of tuples where each tuple represents (latitude, longitude).
+            coordinates (list): A list of coordinate tuples in (latitude, longitude) format.
+            utm_zone (int): The UTM zone to convert the coordinates.
 
         Returns:
-            float: Total distance in kilometers.
+            float: The total distance in kilometers.
         """
+        # Initialize a Transformer object for converting coordinates between WGS84 and the UTM zone
+        transformer = Transformer.from_crs('EPSG:4326', utm_zone, always_xy=True)
 
-        # Initialize the total distance to 0
-        total_distance = 0.0
-        
-        # Iterate over each pair of consecutive coordinates
-        for i in range(len(coordinates) - 1):
+        total_distance = 0
 
-            # Add the distance between the current pair of coordinates to the total distance
-            total_distance += geodesic(coordinates[i], coordinates[i + 1]).km
+        # Iterate over the coordinates
+        for i in range(1, len(coordinates)):
+            # Convert the coordinates to the UTM zone
+            coord1 = transformer.transform(coordinates[i-1][1], coordinates[i-1][0])
+            coord2 = transformer.transform(coordinates[i][1], coordinates[i][0])
+
+            # Calculate the Euclidean distance between consecutive points
+            distance = ((coord2[0] - coord1[0])**2 + (coord2[1] - coord1[1])**2)**(1/2) / 1000
+            total_distance += distance
 
         return total_distance
-    
