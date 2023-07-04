@@ -215,3 +215,39 @@ class osmlf:
             'playground'    : area('playground'),
             'stadium'       : area('stadium')
         }
+    
+    def highway(self) -> dict:
+        """
+        Fetches highway information for the given OSM ID and calculates the total length of highways.
+
+        Returns:
+            dict: A dictionary containing the total length of highways and detailed information about each highway segment.
+        """
+        
+        # Initialize the overpass query for highway information
+        query = queries.generate_osm_query(
+            osm_id=self.osm_id,
+            key='highway',
+            values=[]
+        )
+        
+        # Execute the Overpass query and save the response
+        highway = self.api.query(query)
+        
+        # Process the response to extract highway information
+        highway = [
+            {
+                'tags': way.tags,
+                'coordinates': [(float(node.lat), float(node.lon)) for node in way.nodes],
+                'length': calculations.calculate_total_distance(
+                    [(float(node.lat), float(node.lon)) for node in way.nodes],
+                    self.utm_zone
+                )
+            }
+            for way in highway.ways
+        ]
+        
+        return {
+            'total_length': sum([elem['length'] for elem in highway]),
+            'highway': highway
+        }
