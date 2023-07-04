@@ -218,10 +218,19 @@ class osmlf:
     
     def highway(self) -> dict:
         """
-        Fetches highway information for the given OSM ID and calculates the total length of highways.
+        Retrieves and returns highway information about the location from the Overpass API.
+
+        The method initializes an Overpass query for highway information and executes it to fetch the response.
+        It extracts relevant details such as the tags, coordinates, and length of each highway way.
+        The total length of all highways in the area is calculated and returned along with the detailed information for each highway.
 
         Returns:
-            dict: A dictionary containing the total length of highways and detailed information about each highway segment.
+            dict: A dictionary containing the following keys:
+                - 'total_length': The total length of all highways in the area.
+                - 'highway': A list of dictionaries, each representing a highway way, with the following keys:
+                    - 'tags': A dictionary of key-value pairs representing the tags of the highway way.
+                    - 'coordinates': A list of (latitude, longitude) coordinates of the nodes comprising the highway way.
+                    - 'length': The length of the highway way in meters.
         """
         
         # Initialize the overpass query for highway information
