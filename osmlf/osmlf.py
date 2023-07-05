@@ -216,6 +216,48 @@ class osmlf:
             'stadium'       : area('stadium')
         }
     
+    def tourism(self) -> dict:
+        """Retrieves tourism information about the location from the Overpass API.
+
+        The method:
+            - Initializes an Overpass query for tourism information.
+            - Executes the Overpass query and saves the response.
+            - Calculates and retrieves the nodes and ways for each specified tourism value.
+            - Returns a dictionary containing the nodes and ways grouped by tourism values.
+
+        Returns:
+            dict: A dictionary containing:
+                - 'nodes': a dictionary where the keys are tourism values and the values are lists of node features.
+                - 'ways': a dictionary where the keys are tourism values and the values are the total distance of ways
+                        corresponding to each tourism value.
+        """
+        
+        # List of tourism values to retrieve information for
+        values = [
+                'aquarium', 'artwork', 'attraction', 'hostel', 'hotel', 
+                'motel', 'museum', 'theme_park', 'viewpoint', 'zoo'
+            ]
+
+        # Initialize the overpass query for tourism information
+        query = queries.generate_osm_query(
+            osm_id=self.osm_id,
+            key='tourism',
+            values=values
+        )
+
+        # Execute the Overpass query and save the response
+        tourism = self.api.query(query)
+
+        # Retrieve nodes for each tourism value and store them in a dictionary
+        nodes = {value: calculations.nodes(operations.filter_nodes(tourism.nodes, 'tourism', value)) for value in values}
+
+        # Retrieve ways for each tourism value and store them in a dictionary
+        ways = {value: calculations.ways(operations.filter_ways(tourism.ways, 'tourism', value), self.utm_zone) for value in values}
+
+        # Return the dictionary containing nodes and ways grouped by tourism values
+        return {'nodes': nodes, 'ways': ways}
+
+    
     def highway(self) -> dict:
         """
         Retrieves and returns highway information about the location from the Overpass API.
