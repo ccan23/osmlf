@@ -288,9 +288,9 @@ class osmlf:
         # Process the response to extract highway information
         highway = [
             {
-                'tags': way.tags,
+                'tags'       : way.tags,
                 'coordinates': [(float(node.lat), float(node.lon)) for node in way.nodes],
-                'length': calculations.total_distance(
+                'length'     : calculations.total_distance(
                     [(float(node.lat), float(node.lon)) for node in way.nodes],
                     self.utm_zone
                 )
@@ -302,3 +302,27 @@ class osmlf:
             'total_length': sum([elem['length'] for elem in highway]),
             'highway': highway
         }
+
+    def railway(self) -> dict:
+
+        values = ['platform', 'station', 'stop_area']
+
+        # Initialize the overpass query for railway information
+        query = queries.generate_osm_query(
+            osm_id=self.osm_id,
+            key='railway',
+            values=values
+        )
+
+        # Execute the Overpass query and save the response
+        railway = self.api.query(query)
+
+        # Retrieve nodes for each tourism value and store them in a dictionary
+        nodes = {value: calculations.nodes(operations.filter_nodes(railway.nodes, 'railway', value)) for value in values}
+
+        # Retrieve ways for each tourism value and store them in a dictionary
+        ways = {value: calculations.ways(operations.filter_ways(railway.ways, 'railway', value), self.utm_zone) for value in values}
+
+        # Return the dictionary containing nodes and ways grouped by tourism values
+        return {'nodes': nodes, 'ways': ways}
+
