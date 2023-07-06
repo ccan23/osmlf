@@ -257,7 +257,42 @@ class osmlf:
         # Return the dictionary containing nodes and ways grouped by tourism values
         return {'nodes': nodes, 'ways': ways}
 
-    
+    def natural(self) -> dict:
+        """
+        Retrieves natural information from the Overpass API and organizes it into a dictionary.
+
+        The method initializes an Overpass query for natural information based on specified natural values.
+        It executes the query, retrieves nodes and ways for each natural value, and stores them in separate dictionaries.
+        The resulting dictionaries group the nodes and ways by their corresponding natural values.
+
+        Returns:
+            dict: A dictionary containing:
+                - 'nodes': A dictionary with natural nodes grouped by natural values.
+                - 'ways': A dictionary with natural ways grouped by natural values.
+        """
+
+        # List of natural values to retrieve information for
+        values = ['beach']
+
+        # Initialize the overpass query for natural information
+        query = queries.generate_osm_query(
+            osm_id=self.osm_id,
+            key='natural',
+            values=values
+        )
+
+        # Execute the Overpass query and save the response
+        natural = self.api.query(query)
+
+        # Retrieve nodes for each natural value and store them in a dictionary
+        nodes = {value: calculations.nodes(operations.filter_nodes(natural.nodes, 'natural', value)) for value in values}
+
+        # Retrieve ways for each natural value and store them in a dictionary
+        ways = {value: calculations.ways(operations.filter_ways(natural.ways, 'natural', value), self.utm_zone) for value in values}
+
+        # Return the dictionary containing nodes and ways grouped by natural values
+        return {'nodes': nodes, 'ways': ways}
+
     def highway(self) -> dict:
         """
         Retrieves and returns highway information about the location from the Overpass API.
@@ -317,6 +352,7 @@ class osmlf:
                 - 'ways': A dictionary with railway ways grouped by railway values.
         """
 
+        # List of railway values to retrieve information for
         values = ['platform', 'station', 'stop_area']
 
         # Initialize the overpass query for railway information
