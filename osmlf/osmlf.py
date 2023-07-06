@@ -304,6 +304,18 @@ class osmlf:
         }
 
     def railway(self) -> dict:
+        """
+        Retrieves railway information from the Overpass API and organizes it into a dictionary.
+
+        The method initializes an Overpass query for railway information based on specified railway values.
+        It executes the query, retrieves nodes and ways for each railway value, and stores them in separate dictionaries.
+        The resulting dictionaries group the nodes and ways by their corresponding railway values.
+
+        Returns:
+            dict: A dictionary containing:
+                - 'nodes': A dictionary with railway nodes grouped by railway values.
+                - 'ways': A dictionary with railway ways grouped by railway values.
+        """
 
         values = ['platform', 'station', 'stop_area']
 
