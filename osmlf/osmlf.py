@@ -47,6 +47,12 @@ class osmlf:
             lon=float(self.location.raw['lon'])
         )
 
+    def __str__(self) -> str:
+        return self.location.__str__()
+    
+    def __repr__(self) -> str:
+        return f'osmlf({self.location.__str__()})'
+
     def administrative(self) -> dict:
         """
         Retrieves and returns administrative information about the location from the Overpass API.
