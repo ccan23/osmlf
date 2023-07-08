@@ -374,3 +374,47 @@ class osmlf:
         # Return the dictionary containing nodes and ways grouped by tourism values
         return {'nodes': nodes, 'ways': ways}
 
+    def waterway(self) -> dict:
+        """
+        Retrieves waterway information from the Overpass API and processes it to extract relevant details.
+
+        The method initializes an Overpass query for waterway information.
+        It executes the query, retrieves the response, and processes it to extract waterway details.
+        The resulting dictionary contains the total length of waterways and a list of waterway features, each with its tags, coordinates, and length.
+
+        Returns:
+            dict: A dictionary containing:
+                - 'total_length': The total length of waterways in the specified area.
+                - 'waterway': A list of waterway features, each represented as a dictionary with the following keys:
+                    - 'tags': Tags associated with the waterway feature.
+                    - 'coordinates': A list of coordinate tuples representing the geometry of the waterway feature.
+                    - 'length': The length of the waterway feature in kilometers.
+        """
+
+        # Initialize the overpass query for waterpark information
+        query = queries.generate_osm_query(
+            osm_id=self.osm_id,
+            key='highway',
+            values=[]
+        )
+
+        # Execute the Overpass query and save the response
+        waterway = self.api.query(query)
+
+        # Process the response to extract waterway information
+        waterway = [
+            {
+                'tags'       : way.tags,
+                'coordinates': [(float(node.lat), float(node.lon)) for node in way.nodes],
+                'length'     : calculations.total_distance(
+                    [(float(node.lat), float(node.lon)) for node in way.nodes],
+                    self.utm_zone
+                )
+            }
+            for way in waterway.ways
+        ]
+
+        return {
+            'total_length': sum([elem['length'] for elem in waterway]),
+            'highway': waterway
+        }
