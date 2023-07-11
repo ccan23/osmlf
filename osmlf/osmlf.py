@@ -23,35 +23,155 @@ class osmlf:
 
     def __init__(self, location: str):
         """
-        Initializes an osmlf object by:
-            - Retrieving geographical data about the specified location using geopy's Nominatim service.
-            - Saving the OpenStreetMap ID of the location.
-            - Initializing an Overpass API client.
-            - Determining the UTM (Universal Transverse Mercator) zone based on the latitude and longitude of the location.
+        Initializes an osmlf object with the specified location.
 
         Args:
-            location (str): A string representing the location to gather information about.
+            location (str): The name or address of the location.
+
+        The method performs the following tasks:
+            - Geocodes the location using Nominatim to obtain the corresponding OpenStreetMap relation.
+            - Extracts the OpenStreetMap ID from the geocoding result.
+            - Initializes an Overpass API object.
+            - Determines the UTM zone for the location based on its latitude and longitude.
+            - Sets default values for different OSM key categories.
+
+        Note:
+            The OpenStreetMap relation ID is used to retrieve detailed information about the location.
         """
-        # Geographical information about the specified location is obtained using geopy's Nominatim service
+        # Geocode the location using Nominatim to obtain the OpenStreetMap relation   
         self.location = Nominatim(user_agent='osmlf').geocode(location, featuretype='relation')
 
-        # Save the OpenStreetMap ID of the given location
+        # Extract the OpenStreetMap ID from the geocoding result
         self.osm_id = self.location.raw['osm_id']
 
-        # Initialize the Overpass API client
+        # Initialize an Overpass API object
         self.api = overpy.Overpass()
 
-        # Determine the UTM zone for the given latitude and longitude
+        # Determine the UTM zone for the location based on its latitude and longitude
         self.utm_zone = operations.select_utm_zone(
             lat=float(self.location.raw['lat']),
             lon=float(self.location.raw['lon'])
         )
 
+        # Set default values for different OSM key categories
+        self.default_values = {
+            'amenity': [
+                'bar', 'cafe', 'fast_food', 'food_court', 'pub', 'restaurant',
+                'college', 'library', 'school', 'university', 'atm', 'bank',
+                'clinic', 'dentist', 'doctors', 'hospital', 'pharmacy', 'veterinary',
+                'cinema', 'conference_centre', 'theatre', 'courthouse', 'fire_station',
+                'police', 'post_office', 'townhall', 'marketplace', 'grave_yard'
+            ],
+            'landuse': ['forest', 'residential', 'commercial', 'industrial', 'farming'],
+            'leisure': ['marina', 'garden', 'park', 'playground', 'stadium'],
+            'tourism': [
+                'aquarium', 'artwork', 'attraction', 'hostel', 'hotel', 
+                'motel', 'museum', 'theme_park', 'viewpoint', 'zoo'
+            ],
+            'natural': ['beach'],
+            'highway': [],
+            'railway': ['platform', 'station', 'stop_area'],
+            'waterway': []
+        }
+    
     def __str__(self) -> str:
         return self.location.__str__()
     
     def __repr__(self) -> str:
         return f'osmlf({self.location.__str__()})'
+    
+    def __objects(self, key: str, values: list) -> dict:
+        """
+        Retrieves OSM objects (nodes and ways) from the Overpass API based on the specified key-value pairs
+        and organizes them into a dictionary.
+
+        Args:
+            key (str): The key to filter the OSM objects.
+            values (list): A list of values to filter the OSM objects.
+
+        Returns:
+            dict: A dictionary containing the retrieved OSM objects, grouped by their respective values.
+                The dictionary has two keys: 'nodes' and 'ways'.
+                Each key maps to a dictionary where the keys are the OSM object values and the values
+                are lists of OSM object features (nodes or ways) associated with that value.
+        """
+        # Generate the Overpass query for OSM object information
+        query = queries.generate_osm_query(self.osm_id, key, values)
+
+        # Execute the Overpass query and save the response
+        response = self.api.query(query)
+
+        # Retrieve nodes for each value of the key and store them in a dictionary
+        nodes = {value: calculations.nodes(operations.filter_nodes(response.nodes, key, value)) for value in values}
+
+        # Retrieve ways for each value of the key and store them in a dictionary
+        ways = {value: calculations.ways(operations.filter_ways(response.ways, key, value), self.utm_zone) for value in values}
+
+        # Return the dictionary containing nodes and ways grouped by key values
+        return {'nodes': nodes, 'ways': ways}
+
+    def __lengths(self, key: str, values: list) -> dict:
+        """
+        Retrieves road lengths based on the specified key and values from the Overpass API response.
+
+        The method generates an Overpass query to fetch the OSM objects that match the given key and values.
+        It executes the query, processes the response, and extracts the road lengths for each matching object.
+        The resulting dictionary contains the total length of roads and a list of road features, each with its tags, coordinates, and length.
+
+        Args:
+            key (str): The key for the OSM object to retrieve (e.g., 'highway').
+            values (list): A list of values to filter the OSM objects by.
+
+        Returns:
+            dict: A dictionary containing:
+                - 'total_length' (float): The total length of all roads that match the specified key and values.
+                - 'info' (list): A list of dictionaries representing road features, with the following keys:
+                    - 'tags' (dict): Tags associated with the road feature.
+                    - 'coordinates' (list): A list of coordinate tuples representing the geometry of the road feature.
+                    - 'length' (float): The length of the road feature in kilometers.
+        """
+        # Generate the Overpass query for OSM object information
+        query = queries.generate_osm_query(self.osm_id, key, values)
+
+        # Execute the overpass query and save the response
+        response = self.api.query(query)
+
+        # Process the response to extract key information
+        length = [
+            {
+                'tags'       : way.tags,
+                'coordinates': [(float(node.lat), float(node.lon)) for node in way.nodes],
+                'length'     : calculations.total_distance(
+                    [(float(node.lat), float(node.lon)) for node in way.nodes],
+                    self.utm_zone
+                )
+            } for way in response.ways
+        ]
+
+        # Return the dictionary containing lengths of roads
+        return {
+            'total_length': sum([elem['length'] for elem in length]),
+            'info'        : length
+        }
+    
+    def __execute(self, target: str, key: str, values):
+        
+        # If values is None, use the default values
+        if values is None:
+            values = self.default_values[key]
+        
+        # If values is a string, convert it to a single-element list
+        elif values is not None and isinstance(values, str):
+            values = [values]
+
+        # If target is objects (nodes and ways)
+        if target == 'objects':
+            # Call the __objects method to retrieve and return the target objects
+            return self.__objects(key, values)
+
+        # If target is lengths (lengts of roads (highway and waterway))
+        elif target == 'lengths':
+            return self.__lengths(key, values)
 
     def administrative(self) -> dict:
         """
@@ -65,7 +185,6 @@ class osmlf:
 
         Returns:
             dict: A dictionary containing:
-                - 'response': the raw response from the Overpass API.
                 - 'core': a tuple of the core (downtown) coordinates of the location (latitude, longitude).
                 - 'subareas': the subareas of the location.
                 - 'total_area': the total area of the location in the UTM zone (km square).
@@ -78,349 +197,120 @@ class osmlf:
 
         # Return a dictionary with the administrative information, core coordinates, subareas, and total area
         return {
-            'response'  : admin,
             'core'      : (float(self.location.raw['lat']), float(self.location.raw['lon'])), 
             'subareas'  : operations.subareas(relations=admin.relations),
             'total_area': operations.total_area(relations=admin.relations, utm_zone=self.utm_zone)
         }
-
-    def amenity(self) -> dict:
-        """
-        Retrieves amenity information for a specific OpenStreetMap ID.
-
-        Returns a dictionary containing nodes and ways grouped by amenity values.
-
-        Returns:
-            dict: A dictionary containing nodes and ways grouped by amenity values.
-                The structure of the dictionary is as follows:
-                {
-                    'nodes': {
-                        'amenity_1': [list of nodes with amenity_1],
-                        'amenity_2': [list of nodes with amenity_2],
-                        ...
-                    },
-                    'ways': {
-                        'amenity_1': [list of ways with amenity_1],
-                        'amenity_2': [list of ways with amenity_2],
-                        ...
-                    }
-                }
-        """
-
-        # List of amenity values to retrieve information for
-        values = [
-            'bar', 'cafe', 'fast_food', 'food_court', 'pub', 'restaurant',
-            'college', 'library', 'school', 'university', 'atm', 'bank',
-            'clinic', 'dentist', 'doctors', 'hospital', 'pharmacy', 'veterinary',
-            'cinema', 'conference_centre', 'theatre', 'courthouse', 'fire_station',
-            'police', 'post_office', 'townhall', 'marketplace', 'grave_yard'
-        ]
-
-        # Generate the Overpass query for amenity information
-        query = queries.generate_osm_query(
-            osm_id=self.osm_id,
-            key='amenity',
-            values=values
-        )
-
-        # Execute the Overpass query and save the response
-        amenity = self.api.query(query)
-
-        # Retrieve nodes for each amenity value and store them in a dictionary
-        nodes = {value: calculations.nodes(operations.filter_nodes(amenity.nodes, 'amenity', value)) for value in values}
-
-        # Retrieve ways for each amenity value and store them in a dictionary
-        ways = {value: calculations.ways(operations.filter_ways(amenity.ways, 'amenity', value), self.utm_zone) for value in values}
-
-        # Return the dictionary containing nodes and ways grouped by amenity values
-        return {'nodes': nodes, 'ways': ways}
-
-    def landuse(self) -> dict:
-        """
-        Retrieves and returns landuse information about the location from the Overpass API.
-
-        The method:
-            - Initializes an Overpass query for landuse information.
-            - Executes the Overpass query and saves the response.
-            - Calculates the area for each landuse type.
-            - Returns a dictionary with the landuse response and the areas of each landuse type.
-
-        Returns:
-            dict: A dictionary containing:
-                - 'response': the raw response from the Overpass API.
-                - 'forest', 'residential', 'commercial', 'industrial', 'farming': 
-                dictionaries for each landuse type containing way features, count of ways, and total area.
-        """
-
-        # Initialize the Overpass query for landuse information, specifically targeting areas of 'forest', 'residential', 
-        # 'commercial', 'industrial', and 'farming' land use types
-        query = queries.generate_osm_query(
-            osm_id=self.osm_id,
-            key='landuse', 
-            values=['forest', 'residential', 'commercial', 'industrial', 'farming']
-        )
-
-        # Execute the Overpass query and save the response
-        landuse = self.api.query(query)
-
-        # Helper lambda functions for readability: 
-        # 'landuse_key' filters ways by a specific land use key
-        # 'area' calculates the area of ways corresponding to a specific land use key
-        landuse_key = lambda key: operations.filter_ways(landuse.ways, 'landuse', key)
-        area        = lambda key: calculations.ways(landuse_key(key), self.utm_zone)
-
-        # Return a dictionary with the landuse response and the areas of each landuse type
-        return {
-            'response'   : landuse,
-            'forest'     : area('forest'),
-            'residential': area('residential'),
-            'commercial' : area('commercial'),
-            'industrial' : area('industrial'),
-            'farming'    : area('farming')
-        }
-
-    def leisure(self) -> dict:
-        """
-        Retrieves and returns leisure information about the location from the Overpass API.
-
-        The method:
-            - Initializes an Overpass query for leisure information.
-            - Executes the Overpass query and saves the response.
-            - Calculates the area for each leisure type.
-            - Returns a dictionary with the leisure response and the areas of each leisure type.
-
-        Returns:
-            dict: A dictionary containing:
-                - 'response': the raw response from the Overpass API.
-                - 'marina', 'garden', 'park', 'playground', 'stadium': 
-                dictionaries for each leisure type containing way features, count of ways, and total area.
-        """
-        
-        # Initialize the overpass query for leisure information
-        query = queries.generate_osm_query(
-            osm_id=self.osm_id,
-            key='leisure',
-            values=['marina', 'garden', 'park', 'playground', 'stadium']
-        )
-
-        # Execute the Overpass query and save the response
-        leisure = self.api.query(query)
-
-        # Helper lambda functions for readability:
-        # 'leisure_key' filters ways by a specific leisure key
-        # 'area' calculates the area of ways corresponding to a specific leisure key
-        leisure_key = lambda key: operations.filter_ways(leisure.ways, 'leisure', key)
-        area        = lambda key: calculations.ways(leisure_key(key), self.utm_zone)
-
-        # Return a dictionary with the leisure response and the areas and distances of each leisure type
-        return {
-            'response'      : leisure,
-            'marina'        : area('marina'),
-            'garden'        : area('garden'),
-            'park'          : area('park'),
-            'playground'    : area('playground'),
-            'stadium'       : area('stadium')
-        }
     
-    def tourism(self) -> dict:
-        """Retrieves tourism information about the location from the Overpass API.
+    def amenity(self, values=None) -> dict:
+        """
+        Retrieves amenity information about the location from the Overpass API.
 
-        The method:
-            - Initializes an Overpass query for tourism information.
-            - Executes the Overpass query and saves the response.
-            - Calculates and retrieves the nodes and ways for each specified tourism value.
-            - Returns a dictionary containing the nodes and ways grouped by tourism values.
+        Args:
+            values (list or str): A list of values or a single value to filter the OSM objects.
+                If None, it retrieves amenity objects using the default values.
+                Possible values can be found at https://wiki.openstreetmap.org/wiki/Key:amenity
 
         Returns:
-            dict: A dictionary containing:
-                - 'nodes': a dictionary where the keys are tourism values and the values are lists of node features.
-                - 'ways': a dictionary where the keys are tourism values and the values are the total distance of ways
-                        corresponding to each tourism value.
+            dict: A dictionary containing the retrieved OSM objects, grouped by their respective values.
         """
-        
-        # List of tourism values to retrieve information for
-        values = [
-                'aquarium', 'artwork', 'attraction', 'hostel', 'hotel', 
-                'motel', 'museum', 'theme_park', 'viewpoint', 'zoo'
-            ]
-
-        # Initialize the overpass query for tourism information
-        query = queries.generate_osm_query(
-            osm_id=self.osm_id,
-            key='tourism',
-            values=values
-        )
-
-        # Execute the Overpass query and save the response
-        tourism = self.api.query(query)
-
-        # Retrieve nodes for each tourism value and store them in a dictionary
-        nodes = {value: calculations.nodes(operations.filter_nodes(tourism.nodes, 'tourism', value)) for value in values}
-
-        # Retrieve ways for each tourism value and store them in a dictionary
-        ways = {value: calculations.ways(operations.filter_ways(tourism.ways, 'tourism', value), self.utm_zone) for value in values}
-
-        # Return the dictionary containing nodes and ways grouped by tourism values
-        return {'nodes': nodes, 'ways': ways}
-
-    def natural(self) -> dict:
+        return self.__execute(target='objects', key='amenity', values=values)
+    
+    def landuse(self, values=None) -> dict:
         """
-        Retrieves natural information from the Overpass API and organizes it into a dictionary.
+         Retrieves landuse information about the location from the Overpass API.
 
-        The method initializes an Overpass query for natural information based on specified natural values.
-        It executes the query, retrieves nodes and ways for each natural value, and stores them in separate dictionaries.
-        The resulting dictionaries group the nodes and ways by their corresponding natural values.
+        Args:
+            values (list or str): A list of values or a single value to filter the OSM objects.
+                If None, it retrieves landuse objects using the default values.
+                Possible values can be found at https://wiki.openstreetmap.org/wiki/Key:landuse
 
         Returns:
-            dict: A dictionary containing:
-                - 'nodes': A dictionary with natural nodes grouped by natural values.
-                - 'ways': A dictionary with natural ways grouped by natural values.
+            dict: A dictionary containing the retrieved OSM objects, grouped by their respective values.
         """
-
-        # List of natural values to retrieve information for
-        values = ['beach']
-
-        # Initialize the overpass query for natural information
-        query = queries.generate_osm_query(
-            osm_id=self.osm_id,
-            key='natural',
-            values=values
-        )
-
-        # Execute the Overpass query and save the response
-        natural = self.api.query(query)
-
-        # Retrieve nodes for each natural value and store them in a dictionary
-        nodes = {value: calculations.nodes(operations.filter_nodes(natural.nodes, 'natural', value)) for value in values}
-
-        # Retrieve ways for each natural value and store them in a dictionary
-        ways = {value: calculations.ways(operations.filter_ways(natural.ways, 'natural', value), self.utm_zone) for value in values}
-
-        # Return the dictionary containing nodes and ways grouped by natural values
-        return {'nodes': nodes, 'ways': ways}
-
-    def highway(self) -> dict:
+        return self.__execute(target='objects', key='landuse', values=values)
+    
+    def leisure(self, values=None) -> dict:
         """
-        Retrieves and returns highway information about the location from the Overpass API.
+        Retrieves leisure information about the location from the Overpass API.
 
-        The method initializes an Overpass query for highway information and executes it to fetch the response.
-        It extracts relevant details such as the tags, coordinates, and length of each highway way.
-        The total length of all highways in the area is calculated and returned along with the detailed information for each highway.
+        Args:
+            values (list or str): A list of values or a single value to filter the OSM objects.
+                If None, it retrieves leisure objects using the default values.
+                Possible values can be found at https://wiki.openstreetmap.org/wiki/Key:leisure
 
         Returns:
-            dict: A dictionary containing the following keys:
-                - 'total_length': The total length of all highways in the area.
-                - 'highway': A list of dictionaries, each representing a highway way, with the following keys:
-                    - 'tags': A dictionary of key-value pairs representing the tags of the highway way.
-                    - 'coordinates': A list of (latitude, longitude) coordinates of the nodes comprising the highway way.
-                    - 'length': The length of the highway way in meters.
+            dict: A dictionary containing the retrieved OSM objects, grouped by their respective values.
         """
-        
-        # Initialize the overpass query for highway information
-        query = queries.generate_osm_query(
-            osm_id=self.osm_id,
-            key='highway',
-            values=[]
-        )
-        
-        # Execute the Overpass query and save the response
-        highway = self.api.query(query)
-        
-        # Process the response to extract highway information
-        highway = [
-            {
-                'tags'       : way.tags,
-                'coordinates': [(float(node.lat), float(node.lon)) for node in way.nodes],
-                'length'     : calculations.total_distance(
-                    [(float(node.lat), float(node.lon)) for node in way.nodes],
-                    self.utm_zone
-                )
-            }
-            for way in highway.ways
-        ]
-        
-        return {
-            'total_length': sum([elem['length'] for elem in highway]),
-            'highway': highway
-        }
-
-    def railway(self) -> dict:
+        return self.__execute(target='objects', key='leisure', values=values)
+    
+    def tourism(self, values=None) -> dict:
         """
-        Retrieves railway information from the Overpass API and organizes it into a dictionary.
+        Retrieves tourism information about the location from the Overpass API.
 
-        The method initializes an Overpass query for railway information based on specified railway values.
-        It executes the query, retrieves nodes and ways for each railway value, and stores them in separate dictionaries.
-        The resulting dictionaries group the nodes and ways by their corresponding railway values.
+        Args:
+            values (list or str): A list of values or a single value to filter the OSM objects.
+                If None, it retrieves tourism objects using the default values.
+                Possible values can be found at https://wiki.openstreetmap.org/wiki/Key:tourism
 
         Returns:
-            dict: A dictionary containing:
-                - 'nodes': A dictionary with railway nodes grouped by railway values.
-                - 'ways': A dictionary with railway ways grouped by railway values.
+            dict: A dictionary containing the retrieved OSM objects, grouped by their respective values.
         """
-
-        # List of railway values to retrieve information for
-        values = ['platform', 'station', 'stop_area']
-
-        # Initialize the overpass query for railway information
-        query = queries.generate_osm_query(
-            osm_id=self.osm_id,
-            key='railway',
-            values=values
-        )
-
-        # Execute the Overpass query and save the response
-        railway = self.api.query(query)
-
-        # Retrieve nodes for each tourism value and store them in a dictionary
-        nodes = {value: calculations.nodes(operations.filter_nodes(railway.nodes, 'railway', value)) for value in values}
-
-        # Retrieve ways for each tourism value and store them in a dictionary
-        ways = {value: calculations.ways(operations.filter_ways(railway.ways, 'railway', value), self.utm_zone) for value in values}
-
-        # Return the dictionary containing nodes and ways grouped by tourism values
-        return {'nodes': nodes, 'ways': ways}
-
-    def waterway(self) -> dict:
+        return self.__execute(target='objects', key='tourism', values=values)
+    
+    def natural(self, values=None) -> dict:
         """
-        Retrieves waterway information from the Overpass API and processes it to extract relevant details.
+        Retrieves natural information about the location from the Overpass API.
 
-        The method initializes an Overpass query for waterway information.
-        It executes the query, retrieves the response, and processes it to extract waterway details.
-        The resulting dictionary contains the total length of waterways and a list of waterway features, each with its tags, coordinates, and length.
+        Args:
+            values (list or str): A list of values or a single value to filter the OSM objects.
+                If None, it retrieves natural objects using the default values.
+                Possible values can be found at https://wiki.openstreetmap.org/wiki/Key:natural
 
         Returns:
-            dict: A dictionary containing:
-                - 'total_length': The total length of waterways in the specified area.
-                - 'waterway': A list of waterway features, each represented as a dictionary with the following keys:
-                    - 'tags': Tags associated with the waterway feature.
-                    - 'coordinates': A list of coordinate tuples representing the geometry of the waterway feature.
-                    - 'length': The length of the waterway feature in kilometers.
+            dict: A dictionary containing the retrieved OSM objects, grouped by their respective values.
         """
+        return self.__execute(target='objects', key='natural', values=values)
+    
+    def highway(self, values=None) -> dict:
+        """
+        Retrieves highway information about the location from the Overpass API.
 
-        # Initialize the overpass query for waterpark information
-        query = queries.generate_osm_query(
-            osm_id=self.osm_id,
-            key='highway',
-            values=[]
-        )
+        Args:
+            values (list or str): A list of values or a single value to filter the OSM objects.
+                If None, it retrieves highway objects using the default values.
+                Possible values can be found at https://wiki.openstreetmap.org/wiki/Key:highway
 
-        # Execute the Overpass query and save the response
-        waterway = self.api.query(query)
+        Returns:
+            dict: A dictionary containing the retrieved OSM objects, grouped by their respective values.
+        """
+        return self.__execute(target='lengths', key='highway', values=values)
+    
+    def railway(self, values=None) -> dict:
+        """
+        Retrieves railway information about the location from the Overpass API.
 
-        # Process the response to extract waterway information
-        waterway = [
-            {
-                'tags'       : way.tags,
-                'coordinates': [(float(node.lat), float(node.lon)) for node in way.nodes],
-                'length'     : calculations.total_distance(
-                    [(float(node.lat), float(node.lon)) for node in way.nodes],
-                    self.utm_zone
-                )
-            }
-            for way in waterway.ways
-        ]
+        Args:
+            values (list or str): A list of values or a single value to filter the OSM objects.
+                If None, it retrieves railway objects using the default values.
+                Possible values can be found at https://wiki.openstreetmap.org/wiki/Key:railway
 
-        return {
-            'total_length': sum([elem['length'] for elem in waterway]),
-            'highway': waterway
-        }
+        Returns:
+            dict: A dictionary containing the retrieved OSM objects, grouped by their respective values.
+        """
+        return self.__execute(target='objects', key='railway', values=values)
+    
+    def waterway(self, values=None) -> dict:
+        """
+        Retrieves waterway information about the location from the Overpass API.
+
+        Args:
+            values (list or str): A list of values or a single value to filter the OSM objects.
+                If None, it retrieves waterway objects using the default values.
+                Possible values can be found at https://wiki.openstreetmap.org/wiki/Key:waterway
+
+        Returns:
+            dict: A dictionary containing the retrieved OSM objects, grouped by their respective values.
+        """
+        return self.__execute(target='objects', key='waterway', values=values)
+    
