@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 class queries:
 
     def administrative(osm_id: int) -> str:

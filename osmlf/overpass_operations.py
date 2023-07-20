@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from overpass_calculations import calculations
+from .overpass_calculations import calculations
 
 class operations:
 
