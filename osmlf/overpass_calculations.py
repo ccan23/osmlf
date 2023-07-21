@@ -46,18 +46,23 @@ class calculations:
 
         # Initialize an empty dictionary to store the features of each way
         way_features = {'ways': list()}
-
+        # counter = 0 # TODO: REMOVE
         # Process each way in the list
         for way in ways:
 
-            # Extract the coordinates of the way's nodes
-            coordinates = [(float(node.lat), float(node.lon)) for node in way.nodes]
+            # Check that the way has at least 4 nodes. This is a requirement for creating a valid polygon
+            # This check helps prevent the "ValueError: A linearring requires at least 4 coordinates" 
+            # That occurs when trying to create a polygon with fewer than 4 unique points
+            if len(way.nodes) > 3:
+                
+                # Extract the latitude and longitude of each node in the way to form a list of coordinates
+                coordinates = [(float(node.lat), float(node.lon)) for node in way.nodes]
 
-            # Extract the coordinates as pyproj wants
-            coordinates_pyroj = [(float(node.lon), float(node.lat)) for node in way.nodes]
+                # Create another list of coordinates in (longitude, latitude) order, as required by the pyproj Transformer
+                coordinates_pyroj = [(float(node.lon), float(node.lat)) for node in way.nodes]
 
-            # Project the coordinates to the specified UTM zone
-            coordinates_projected = [transformer.transform(*coord) for coord in coordinates_pyroj]
+                # Use the Transformer to project the coordinates from geographic coordinates (longitude, latitude) to UTM coordinates
+                coordinates_projected = [transformer.transform(*coord) for coord in coordinates_pyroj]
 
             # Construct a polygon from all the projected coordinates and compute its area in square kilometers
             polygon_projected = Polygon(coordinates_projected)
