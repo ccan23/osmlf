@@ -617,5 +617,8 @@ dict_keys(['nodes', 'ways'])
     'coordinate': (55.7788343, 37.6537207)
 }
 ```
+
+![Moscow Railway](docs/moscow_railway.png)
+
 ### Waterway
 Doesn't work properly. TODO: Fix it
