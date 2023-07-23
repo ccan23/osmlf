@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import requests
+import xml.etree.ElementTree as et
+
 from .overpass_calculations import calculations
 
 class operations:
@@ -76,27 +79,50 @@ class operations:
         # Create the UTM projection string and return it
         return f'+proj=utm +zone={zone_number} +{hemisphere} +ellps=WGS84 +datum=WGS84 +units=m +no_defs'
     
-    def subareas(relations: list) -> dict:
-        """
-        Function to identify subareas from a list of relation objects. 
-        Each relation object is expected to have 'members' as one of its attributes. 
-        Each member should have 'role' and 'ref' as attributes.
-        
-        Args:
-            relations: A list of relation objects
+    def subareas(osm_id):
+        # Response
+        response = requests.get(f'https://www.openstreetmap.org/api/0.6/relation/{osm_id}/full')
 
-        Returns:
-            dict: A dictionary with total count of subareas and sorted list of subarea relation IDs.
-        """
+        # Remove the first line which is not part of the XML data
+        content_fixed = '\n'.join(response.text.split('\n')[1:])
 
-        # Get all subareas from given relations list
-        subareas = operations.filter_members(relations=relations, role='subarea')
+        # Parse the XML content
+        root = et.fromstring(content_fixed)
 
-        # Return a dictionary with the total number of subareas and a sorted list of the reference IDs of the subareas
-        return {
-            'total_subareas'      : len(subareas), 
-            'subarea_relation_ids': sorted([relation.ref for relation in subareas])
-        }
+        # Initialize a set to store the ids of all subareas
+        all_subarea_ids = set()
+
+        # Initialize a variable to store the id of the top-level area
+        top_level_area_id = None
+
+        # Initialize an empty dictionary to store the counts
+        subareas_count = {}
+
+        # Iterate over the relations in the root
+        for relation in root.findall('relation'):
+            # Initialize a count for this relation
+            count = 0
+            # Iterate over the children of the relation
+            for child in relation:
+                # If the child is a 'member' with role 'subarea', increment the count
+                if child.tag == 'member' and child.get('role') == 'subarea':
+                    count += 1
+                    # Add the ref of the child to the set of all subarea ids
+                    all_subarea_ids.add(child.get('ref'))
+            # If the relation has a 'name' tag, add the count to the dictionary
+            name_tag = relation.find("tag[@k='name']")
+            if name_tag is not None:
+                subareas_count[name_tag.get('v')] = count
+                # If this relation's id is not in the set of all subarea ids, it's the top-level area
+                if relation.get('id') not in all_subarea_ids:
+                    top_level_area_id = relation.get('id')
+
+        # Remove the top-level area from the dictionary
+        if top_level_area_id is not None:
+            top_level_name = root.find(f"relation[@id='{top_level_area_id}']/tag[@k='name']").get('v')
+            subareas_count.pop(top_level_name, None)
+
+        return subareas_count
     
     def total_area(relations: list, utm_zone: str) -> float:
         """

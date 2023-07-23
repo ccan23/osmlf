@@ -21,12 +21,12 @@ from .overpass_calculations import calculations
 
 class osmlf:
 
-    def __init__(self, location: str):
+    def __init__(self, location):
         """
         Initializes an osmlf object with the specified location.
 
         Args:
-            location (str): The name or address of the location.
+            location: The name or address of the location.
 
         The method performs the following tasks:
             - Geocodes the location using Nominatim to obtain the corresponding OpenStreetMap relation.
@@ -39,7 +39,7 @@ class osmlf:
             The OpenStreetMap relation ID is used to retrieve detailed information about the location.
         """
         # Geocode the location using Nominatim to obtain the OpenStreetMap relation   
-        self.location = Nominatim(user_agent='osmlf').geocode(location, featuretype='relation')
+        self.location = Nominatim(user_agent='osmlf').geocode(location, featuretype='relation', extratags=True)
 
         # Extract the OpenStreetMap ID from the geocoding result
         self.osm_id = self.location.raw['osm_id']
@@ -198,8 +198,10 @@ class osmlf:
         # Return a dictionary with the administrative information, core coordinates, subareas, and total area
         return {
             'core'      : (float(self.location.raw['lat']), float(self.location.raw['lon'])), 
-            'subareas'  : operations.subareas(relations=admin.relations),
-            'total_area': operations.total_area(relations=admin.relations, utm_zone=self.utm_zone)
+            'subareas'  : operations.subareas(self.osm_id),
+            'total_area': operations.total_area(relations=admin.relations, utm_zone=self.utm_zone),
+            'extratags' : self.location.raw['extratags'],
+            'osm_url'   : f'https://www.openstreetmap.org/relation/{self.osm_id}'
         }
     
     def amenity(self, values=None) -> dict:
