@@ -18,12 +18,16 @@ The images included in this README file are taken from the Overpass API. While t
 ## Requirements
 ```sh
 certifi==2023.5.7
+charset-normalizer==3.2.0
 geographiclib==2.0
 geopy==2.3.0
+idna==3.4
 numpy==1.25.0
 overpy==0.6
 pyproj==3.6.0
+requests==2.31.0
 shapely==2.0.1
+urllib3==2.0.4
 ```
 ## Usage
 Here's examples
