@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 # Area calculations
+import numpy as np
 from pyproj import Transformer
 from shapely.geometry import Polygon
 
@@ -68,10 +69,14 @@ class calculations:
             polygon_projected = Polygon(coordinates_projected)
             area = polygon_projected.area / 10**6
 
+            # Calculate the centroid (center of the coordinates)
+            centroid = tuple(np.mean(coordinates, axis=0))
+
             # Store the way's ID, name, original coordinates
             way_features['ways'].append({
                 'way_id'     : way.id,
                 'tags'       : way.tags,
+                'centroid'   : centroid,
                 'coordinates': coordinates,
                 'area'       : area
             })
