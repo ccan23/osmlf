@@ -41,38 +41,47 @@ class osmlf:
         # Geocode the location using Nominatim to obtain the OpenStreetMap relation   
         self.location = Nominatim(user_agent='osmlf').geocode(location, featuretype='relation', extratags=True)
 
-        # Extract the OpenStreetMap ID from the geocoding result
-        self.osm_id = self.location.raw['osm_id']
+        # Check if geocode location is valid, set the ok attribute to True
+        if self.location:
 
-        # Initialize an Overpass API object
-        self.api = overpy.Overpass()
+            self.ok = True
 
-        # Determine the UTM zone for the location based on its latitude and longitude
-        self.utm_zone = operations.select_utm_zone(
-            lat=float(self.location.raw['lat']),
-            lon=float(self.location.raw['lon'])
-        )
+            # Extract the OpenStreetMap ID from the geocoding result
+            self.osm_id = self.location.raw['osm_id']
 
-        # Set default values for different OSM key categories
-        self.default_values = {
-            'amenity': [
-                'bar', 'cafe', 'fast_food', 'food_court', 'pub', 'restaurant',
-                'college', 'library', 'school', 'university', 'atm', 'bank',
-                'clinic', 'dentist', 'doctors', 'hospital', 'pharmacy', 'veterinary',
-                'cinema', 'conference_centre', 'theatre', 'courthouse', 'fire_station',
-                'police', 'post_office', 'townhall', 'marketplace', 'grave_yard'
-            ],
-            'landuse': ['forest', 'residential', 'commercial', 'industrial', 'farming'],
-            'leisure': ['marina', 'garden', 'park', 'playground', 'stadium'],
-            'tourism': [
-                'aquarium', 'artwork', 'attraction', 'hostel', 'hotel', 
-                'motel', 'museum', 'theme_park', 'viewpoint', 'zoo'
-            ],
-            'natural': ['beach'],
-            'highway': [],
-            'railway': ['platform', 'station', 'stop_area'],
-            'waterway': []
-        }
+            # Initialize an Overpass API object
+            self.api = overpy.Overpass()
+
+            # Determine the UTM zone for the location based on its latitude and longitude
+            self.utm_zone = operations.select_utm_zone(
+                lat=float(self.location.raw['lat']),
+                lon=float(self.location.raw['lon'])
+            )
+
+            # Set default values for different OSM key categories
+            self.default_values = {
+                'amenity': [
+                    'bar', 'cafe', 'fast_food', 'food_court', 'pub', 'restaurant',
+                    'college', 'library', 'school', 'university', 'atm', 'bank',
+                    'clinic', 'dentist', 'doctors', 'hospital', 'pharmacy', 'veterinary',
+                    'cinema', 'conference_centre', 'theatre', 'courthouse', 'fire_station',
+                    'police', 'post_office', 'townhall', 'marketplace', 'grave_yard', 'place_of_worship'
+                ],
+                'landuse': ['forest', 'residential', 'commercial', 'industrial', 'farming'],
+                'leisure': ['marina', 'garden', 'park', 'playground', 'stadium'],
+                'tourism': [
+                    'aquarium', 'artwork', 'attraction', 'hostel', 'hotel', 
+                    'motel', 'museum', 'theme_park', 'viewpoint', 'zoo'
+                ],
+                'natural': ['beach'],
+                'highway': [],
+                'railway': ['platform', 'station', 'stop_area'],
+                'waterway': []
+            }
+        
+        # If geocode location is not valid, set the ok attribute to False
+        else:
+            self.ok = False
     
     def __str__(self) -> str:
         return self.location.__str__()
