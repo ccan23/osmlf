@@ -21,6 +21,8 @@ from .overpass_calculations import calculations
 
 class osmlf:
 
+    __version__ = '0.0.1'
+
     def __init__(self, location):
         """
         Initializes an osmlf object with the specified location.
