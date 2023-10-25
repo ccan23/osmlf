@@ -1,5 +1,7 @@
 # OSMLF
-Version 0.0.1
+License: MIT
+
+Version: 0.0.1
 
 OpenStreetMap Location Features is a Python library that utilizes the OpenStreetMap (OSM) database and Overpass API to retrieve location features and perform various calculations based on the given location. It allows you to extract information about amenities, landuse, leisure, tourism, natural features, highways, railways, and waterways for a specified location.
 
@@ -15,20 +17,12 @@ The following are keys provided by OpenStreetMap (OSM). Each link is a reference
 
 ### Important Note: 
 The images included in this README file are taken from the Overpass API. While these images represent the responses of queries used in this module, it should be noted that this module does not return any visual content; it only provides the corresponding response data.
-## Requirements
-```sh
-certifi==2023.5.7
-charset-normalizer==3.2.0
-geographiclib==2.0
-geopy==2.3.0
-idna==3.4
-numpy==1.25.0
-overpy==0.6
-pyproj==3.6.0
-requests==2.31.0
-shapely==2.0.1
-urllib3==2.0.4
+
+## Installation
+```bash
+pip install osmlf
 ```
+
 ## Usage
 Here's examples
 ```py
